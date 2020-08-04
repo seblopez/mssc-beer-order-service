@@ -20,9 +20,12 @@ import lombok.Builder;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
+import org.hibernate.annotations.Type;
 
+import javax.persistence.Column;
 import javax.persistence.Entity;
 import javax.persistence.ManyToOne;
+import javax.validation.constraints.Pattern;
 import java.sql.Timestamp;
 import java.util.UUID;
 
@@ -50,8 +53,14 @@ public class BeerOrderLine extends BaseEntity {
     @ManyToOne
     private BeerOrder beerOrder;
 
+    @Type(type="org.hibernate.type.UUIDCharType")
+    @Column(length = 36, columnDefinition = "varchar(36)", updatable = false, nullable = false )
     private UUID beerId;
+
+    @Column(length = 13, columnDefinition = "varchar(13)")
+    @Pattern(regexp = "([0-9]){13}")
     private String upc;
+
     private Integer orderQuantity = 0;
     private Integer quantityAllocated = 0;
 }

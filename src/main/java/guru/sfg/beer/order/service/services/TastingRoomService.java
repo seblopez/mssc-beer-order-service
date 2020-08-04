@@ -1,7 +1,10 @@
 package guru.sfg.beer.order.service.services;
 
+import groovy.lang.Tuple2;
 import guru.sfg.beer.order.service.bootstrap.BeerOrderBootStrap;
+import guru.sfg.beer.order.service.client.BeerClient;
 import guru.sfg.beer.order.service.domain.Customer;
+import guru.sfg.beer.order.service.exceptions.NotFoundException;
 import guru.sfg.beer.order.service.repositories.BeerOrderRepository;
 import guru.sfg.beer.order.service.repositories.CustomerRepository;
 import guru.sfg.beer.order.service.web.model.BeerOrderDto;
@@ -11,6 +14,7 @@ import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.text.MessageFormat;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Random;
@@ -23,13 +27,15 @@ public class TastingRoomService {
     private final CustomerRepository customerRepository;
     private final BeerOrderService beerOrderService;
     private final BeerOrderRepository beerOrderRepository;
+    private final BeerClient beerClient;
     private final List<String> beerUpcs = new ArrayList<>(3);
 
     public TastingRoomService(CustomerRepository customerRepository, BeerOrderService beerOrderService,
-                              BeerOrderRepository beerOrderRepository) {
+                              BeerOrderRepository beerOrderRepository, BeerClient beerClient) {
         this.customerRepository = customerRepository;
         this.beerOrderService = beerOrderService;
         this.beerOrderRepository = beerOrderRepository;
+        this.beerClient = beerClient;
 
         beerUpcs.add(BeerOrderBootStrap.BEER_1_UPC);
         beerUpcs.add(BeerOrderBootStrap.BEER_2_UPC);
@@ -50,11 +56,12 @@ public class TastingRoomService {
     }
 
     private void doPlaceOrder(Customer customer) {
-        String beerToOrder = getRandomBeerUpc();
+        Tuple2<UUID, String> beerToOrder = getRandomBeer();
 
         BeerOrderLineDto beerOrderLine = BeerOrderLineDto.builder()
-                .upc(beerToOrder)
-                .orderQuantity(new Random().nextInt(6)) //todo externalize value to property
+                .beerId(beerToOrder.getFirst())
+                .upc(beerToOrder.getSecond())
+                .orderQuantity(new Random().nextInt(7 - 1) + 1) //todo externalize value to property
                 .build();
 
         List<BeerOrderLineDto> beerOrderLineSet = new ArrayList<>();
@@ -70,7 +77,15 @@ public class TastingRoomService {
 
     }
 
-    private String getRandomBeerUpc() {
-        return beerUpcs.get(new Random().nextInt(beerUpcs.size() -0));
+    private Tuple2<UUID, String> getRandomBeer() {
+        final String upc = beerUpcs.get(new Random().nextInt(beerUpcs.size() - 0));
+        final UUID beerId = this.beerClient.getBeerByUpc(upc)
+                .orElseThrow(() -> {
+                    final String errorMessage = MessageFormat.format("UPC {0} not found", upc);
+                    log.error(errorMessage);
+                    return new NotFoundException(errorMessage);
+                })
+                .getId();
+        return new Tuple2<>(beerId, upc);
     }
 }

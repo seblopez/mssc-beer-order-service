@@ -61,7 +61,7 @@ public class TastingRoomService {
         BeerOrderLineDto beerOrderLine = BeerOrderLineDto.builder()
                 .beerId(beerToOrder.getFirst())
                 .upc(beerToOrder.getSecond())
-                .orderQuantity(new Random().nextInt(7 - 1) + 1) //todo externalize value to property
+                .orderQuantity(new Random().nextInt(6) + 1) //todo externalize value to property
                 .build();
 
         List<BeerOrderLineDto> beerOrderLineSet = new ArrayList<>();

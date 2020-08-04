@@ -2,6 +2,7 @@ package guru.sfg.beer.order.service.client;
 
 import guru.sfg.beer.order.service.client.model.BeerDto;
 import lombok.extern.slf4j.Slf4j;
+import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
@@ -12,7 +13,7 @@ import java.util.UUID;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
-// @Disabled
+@Disabled
 @Slf4j
 @SpringBootTest
 class BeerClientRestTemplateImplIT {

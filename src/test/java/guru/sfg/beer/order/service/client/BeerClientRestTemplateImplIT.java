@@ -15,7 +15,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 // @Disabled
 @Slf4j
 @SpringBootTest
-class BeerClientRestTemplateImplTest {
+class BeerClientRestTemplateImplIT {
 
     @Autowired
     BeerClient beerClient;

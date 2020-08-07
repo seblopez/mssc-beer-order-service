@@ -18,7 +18,7 @@ package guru.springframework.beer.order.service.repositories;
 
 
 import guru.springframework.beer.order.service.domain.BeerOrder;
-import guru.springframework.beer.order.service.domain.BeerOrderStatusEnum;
+import guru.springframework.beer.order.service.domain.BeerOrderStatus;
 import guru.springframework.beer.order.service.domain.Customer;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -37,7 +37,7 @@ public interface BeerOrderRepository  extends JpaRepository<BeerOrder, UUID> {
 
     Page<BeerOrder> findAllByCustomer(Customer customer, Pageable pageable);
 
-    List<BeerOrder> findAllByOrderStatus(BeerOrderStatusEnum beerOrderStatusEnum);
+    List<BeerOrder> findAllByOrderStatus(BeerOrderStatus beerOrderStatus);
 
     @Lock(LockModeType.PESSIMISTIC_WRITE)
     BeerOrder findOneById(UUID id);

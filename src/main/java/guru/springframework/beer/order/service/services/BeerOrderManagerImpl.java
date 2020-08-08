@@ -17,6 +17,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.util.HashMap;
 import java.util.Map;
+import java.util.UUID;
 
 @Slf4j
 @RequiredArgsConstructor
@@ -41,9 +42,21 @@ public class BeerOrderManagerImpl implements BeerOrderManager {
 
     }
 
+    @Transactional
     @Override
-    public void validateBeerOrder(BeerOrder order) {
-        this.sendBeerOrderEvent(order, BeerOrderEvent.VALIDATE_ORDER);
+    public void processBeerOrderValidation(UUID beerOrderId, Boolean isValid) {
+        final BeerOrder beerOrder = beerOrderRepository.getOne(beerOrderId);
+
+        if(isValid) {
+            this.sendBeerOrderEvent(beerOrder, BeerOrderEvent.VALIDATION_PASSED);
+            final BeerOrder validatedOrder = this.beerOrderRepository.getOne(beerOrderId);
+
+            this.sendBeerOrderEvent(validatedOrder, BeerOrderEvent.ALLOCATE_ORDER);
+
+        } else {
+            this.sendBeerOrderEvent(beerOrder, BeerOrderEvent.VALIDATION_FAILED);
+        }
+
     }
 
     private void sendBeerOrderEvent(BeerOrder order, BeerOrderEvent event) {

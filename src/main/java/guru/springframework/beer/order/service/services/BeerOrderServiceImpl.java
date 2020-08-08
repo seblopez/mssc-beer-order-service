@@ -17,6 +17,7 @@
 
 package guru.springframework.beer.order.service.services;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
 import guru.springframework.beer.order.service.domain.BeerOrder;
 import guru.springframework.beer.order.service.domain.BeerOrderStatus;
 import guru.springframework.beer.order.service.domain.Customer;
@@ -25,11 +26,13 @@ import guru.springframework.beer.order.service.repositories.CustomerRepository;
 import guru.springframework.beer.order.service.web.mappers.BeerOrderMapper;
 import guru.springframework.beer.order.service.web.model.BeerOrderDto;
 import guru.springframework.beer.order.service.web.model.BeerOrderPagedList;
+import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
+import org.springframework.jms.core.JmsTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -38,6 +41,7 @@ import java.util.UUID;
 import java.util.stream.Collectors;
 
 @Slf4j
+@RequiredArgsConstructor
 @Service
 public class BeerOrderServiceImpl implements BeerOrderService {
 
@@ -45,15 +49,8 @@ public class BeerOrderServiceImpl implements BeerOrderService {
     private final CustomerRepository customerRepository;
     private final BeerOrderMapper beerOrderMapper;
     private final ApplicationEventPublisher publisher;
-
-    public BeerOrderServiceImpl(BeerOrderRepository beerOrderRepository,
-                                CustomerRepository customerRepository,
-                                BeerOrderMapper beerOrderMapper, ApplicationEventPublisher publisher) {
-        this.beerOrderRepository = beerOrderRepository;
-        this.customerRepository = customerRepository;
-        this.beerOrderMapper = beerOrderMapper;
-        this.publisher = publisher;
-    }
+    private final ObjectMapper objectMapper;
+    private final JmsTemplate jmsTemplate;
 
     @Override
     public BeerOrderPagedList listOrders(UUID customerId, Pageable pageable) {

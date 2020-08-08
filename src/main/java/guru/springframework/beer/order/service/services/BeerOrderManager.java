@@ -6,4 +6,6 @@ public interface BeerOrderManager {
 
     BeerOrder newBeerOrder(BeerOrder order);
 
+    void validateBeerOrder(BeerOrder order);
+
 }

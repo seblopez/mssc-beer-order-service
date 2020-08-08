@@ -15,6 +15,9 @@ import org.springframework.statemachine.support.DefaultStateMachineContext;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.util.HashMap;
+import java.util.Map;
+
 @Slf4j
 @RequiredArgsConstructor
 @Service
@@ -38,6 +41,11 @@ public class BeerOrderManagerImpl implements BeerOrderManager {
 
     }
 
+    @Override
+    public void validateBeerOrder(BeerOrder order) {
+        this.sendBeerOrderEvent(order, BeerOrderEvent.VALIDATE_ORDER);
+    }
+
     private void sendBeerOrderEvent(BeerOrder order, BeerOrderEvent event) {
         final StateMachine<BeerOrderStatus, BeerOrderEvent> stateMachine = build(order);
 
@@ -57,7 +65,9 @@ public class BeerOrderManagerImpl implements BeerOrderManager {
         stateMachine.getStateMachineAccessor()
                 .doWithAllRegions(sm -> {
                     sm.addStateMachineInterceptor(beerOrderStateChangeInterceptor);
-                    sm.resetStateMachine(new DefaultStateMachineContext<>(order.getOrderStatus(), null, null, null));
+                    Map<String, Object> eventHeaders = new HashMap<>();
+                    eventHeaders.put("order", order);
+                    sm.resetStateMachine(new DefaultStateMachineContext<>(order.getOrderStatus(), null, eventHeaders, null));
                 });
 
         stateMachine.start();

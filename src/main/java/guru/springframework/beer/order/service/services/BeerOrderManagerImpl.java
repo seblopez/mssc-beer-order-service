@@ -5,6 +5,7 @@ import guru.springframework.beer.order.service.domain.BeerOrderEvent;
 import guru.springframework.beer.order.service.domain.BeerOrderStatus;
 import guru.springframework.beer.order.service.interceptor.BeerOrderStateChangeInterceptor;
 import guru.springframework.beer.order.service.repositories.BeerOrderRepository;
+import guru.springframework.beer.order.service.web.model.BeerOrderDto;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.messaging.Message;
@@ -15,8 +16,10 @@ import org.springframework.statemachine.support.DefaultStateMachineContext;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.text.MessageFormat;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.Optional;
 import java.util.UUID;
 
 @Slf4j
@@ -57,6 +60,66 @@ public class BeerOrderManagerImpl implements BeerOrderManager {
             this.sendBeerOrderEvent(beerOrder, BeerOrderEvent.VALIDATION_FAILED);
         }
 
+    }
+
+    @Override
+    public void processBeerOrderAllocation(BeerOrderDto order, Boolean orderAllocated, Boolean error) {
+        if(error) {
+            processAllocationError(order);
+        } else if(orderAllocated) {
+            processSuccessfulAllocation(order);
+        } else {
+            processPendingAllocation(order);
+        }
+
+    }
+
+    private void processAllocationError(BeerOrderDto beerOrderDto) {
+        final UUID orderId = beerOrderDto.getId();
+        beerOrderRepository.findById(orderId)
+                .ifPresentOrElse(beerOrder -> {
+                    log.error(MessageFormat.format("There was an error processing the allocation request for Beer Order {0}", beerOrder.getId()));
+                    sendBeerOrderEvent(beerOrder, BeerOrderEvent.ALLOCATION_FAILED);
+                    }
+                    , () -> log.error(MessageFormat.format("Order Id {0} not found while processing allocation error", orderId)));
+    }
+
+    private void processPendingAllocation(BeerOrderDto beerOrderDto) {
+        final UUID orderId = beerOrderDto.getId();
+        beerOrderRepository.findById(orderId)
+                .ifPresentOrElse(beerOrder -> {
+                            log.error(MessageFormat.format("Beer Order {0} was not completely allocated", beerOrder.getId()));
+                            sendBeerOrderEvent(beerOrder, BeerOrderEvent.ALLOCATION_NO_INVENTORY);
+                            updateAllocatedQty(beerOrderDto);
+                        }
+                        , () -> log.error(MessageFormat.format("Order Id {0} not found while processing allocation error", orderId)));
+    }
+
+    private void processSuccessfulAllocation(BeerOrderDto beerOrderDto) {
+        final UUID orderId = beerOrderDto.getId();
+        beerOrderRepository.findById(orderId)
+                .ifPresentOrElse(beerOrder -> {
+                            log.error(MessageFormat.format("Beer Order {0} was not completely allocated", beerOrder.getId()));
+                            sendBeerOrderEvent(beerOrder, BeerOrderEvent.ALLOCATION_SUCCESS);
+                            updateAllocatedQty(beerOrderDto);
+                        }
+                        , () -> log.error(MessageFormat.format("Order Id {0} not found while processing allocation error", orderId)));
+    }
+
+    private void updateAllocatedQty(BeerOrderDto beerOrderDto) {
+        Optional<BeerOrder> allocatedOrderOptional = beerOrderRepository.findById(beerOrderDto.getId());
+
+        allocatedOrderOptional.ifPresentOrElse(allocatedOrder -> {
+            allocatedOrder.getBeerOrderLines().forEach(beerOrderLine -> {
+                beerOrderDto.getBeerOrderLines().forEach(beerOrderLineDto -> {
+                    if(beerOrderLine.getId() .equals(beerOrderLineDto.getId())){
+                        beerOrderLine.setQuantityAllocated(beerOrderLineDto.getQuantityAllocated());
+                    }
+                });
+            });
+
+            beerOrderRepository.saveAndFlush(allocatedOrder);
+        }, () -> log.error("Order Not Found. Id: " + beerOrderDto.getId()));
     }
 
     private void sendBeerOrderEvent(BeerOrder order, BeerOrderEvent event) {

@@ -1,5 +1,6 @@
 package guru.springframework.beer.order.service.event;
 
+import guru.springframework.beer.order.service.web.model.BaseItem;
 import guru.springframework.beer.order.service.web.model.BeerOrderDto;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
@@ -12,8 +13,11 @@ import java.io.Serializable;
 @NoArgsConstructor
 @Builder
 @Data
-public class ValidateBeerOrderRequest implements Serializable {
-    private static final long serialVersionUID = -4177171501608081404L;
+public class AllocateOrderResponse extends BaseItem implements Serializable {
+    private static final long serialVersionUID = 4107089141124025785L;
 
     private BeerOrderDto beerOrderDto;
+    private Boolean allocationError;
+    private Boolean pendingInventory;
+
 }

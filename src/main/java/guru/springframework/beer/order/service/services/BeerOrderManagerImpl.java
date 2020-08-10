@@ -119,7 +119,6 @@ public class BeerOrderManagerImpl implements BeerOrderManager {
                     }
                 });
             });
-
             beerOrderRepository.saveAndFlush(allocatedOrder);
         }, () -> log.error("Order Not Found. Id: " + beerOrderDto.getId()));
     }

@@ -1,4 +1,4 @@
-package guru.springframework.beer.order.service.event;
+package guru.springframework.beer.order.service.statemachine.event;
 
 import lombok.AllArgsConstructor;
 import lombok.Builder;
@@ -17,5 +17,5 @@ public class ValidateBeerOrderResponse implements Serializable {
 
     private UUID orderId;
     private Boolean isValid;
-            ;
+
 }

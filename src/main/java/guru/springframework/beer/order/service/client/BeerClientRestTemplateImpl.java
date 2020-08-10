@@ -14,8 +14,8 @@ import java.util.UUID;
 @ConfigurationProperties(prefix = "sfg.brewery", ignoreUnknownFields = true)
 @Component
 public class BeerClientRestTemplateImpl implements BeerClient {
-    private final String BEER_ID_API_PATH = "/api/v1/beer/";
-    private final String BEER_UPC_API_PATH = "/api/v1/beerUpc/";
+    public static final String BEER_ID_API_PATH = "/api/v1/beer/";
+    public static final String BEER_UPC_API_PATH = "/api/v1/beerUpc/";
     private final RestTemplate restTemplate;
     private String beerServiceHost;
 
@@ -29,7 +29,7 @@ public class BeerClientRestTemplateImpl implements BeerClient {
 
     @Override
     public Optional<BeerDto> getBeerById(UUID beerId) {
-        log.info("Calling Beer Client operation getBeerById");
+        log.debug("Calling Beer Client operation getBeerById");
         return Optional.of(restTemplate
                 .getForObject(beerServiceHost + BEER_ID_API_PATH + beerId.toString(), BeerDto.class));
 
@@ -37,7 +37,7 @@ public class BeerClientRestTemplateImpl implements BeerClient {
 
     @Override
     public Optional<BeerDto> getBeerByUpc(String upc) {
-        log.info("Calling Beer Client operation getBeerByUpc");
+        log.debug("Calling Beer Client operation getBeerByUpc");
         return Optional.of(restTemplate
                 .getForObject(beerServiceHost + BEER_UPC_API_PATH + upc, BeerDto.class));
     }

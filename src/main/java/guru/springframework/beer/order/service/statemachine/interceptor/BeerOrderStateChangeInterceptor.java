@@ -1,6 +1,5 @@
-package guru.springframework.beer.order.service.interceptor;
+package guru.springframework.beer.order.service.statemachine.interceptor;
 
-import guru.springframework.beer.order.service.domain.BeerOrder;
 import guru.springframework.beer.order.service.domain.BeerOrderEvent;
 import guru.springframework.beer.order.service.domain.BeerOrderStatus;
 import guru.springframework.beer.order.service.repositories.BeerOrderRepository;
@@ -29,10 +28,12 @@ public class BeerOrderStateChangeInterceptor extends StateMachineInterceptorAdap
         Optional.ofNullable(message)
                 .flatMap(msg -> Optional.ofNullable((String) msg.getHeaders().getOrDefault(BeerOrderManagerImpl.BEER_ORDER_ID_HDR, "")))
                 .ifPresent(orderId -> {
-                    final BeerOrder order = beerOrderRepository.getOne(UUID.fromString(orderId));
-                    order.setOrderStatus(state.getId());
-                    log.info(MessageFormat.format("Saving order {0} with new status {1}", orderId, order.getOrderStatus()));
-                    beerOrderRepository.saveAndFlush(order);
+                    beerOrderRepository.findById(UUID.fromString(orderId))
+                            .ifPresentOrElse(order -> {
+                                order.setOrderStatus(state.getId());
+                                log.debug(MessageFormat.format("Saving order {0} with new status {1}", orderId, order.getOrderStatus()));
+                                beerOrderRepository.saveAndFlush(order);
+                            }, () -> log.error(MessageFormat.format("Order Id {0} not found!", orderId)));
                 });
     }
 }

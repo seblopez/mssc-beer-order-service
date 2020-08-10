@@ -1,4 +1,4 @@
-package guru.springframework.beer.order.service.event;
+package guru.springframework.beer.order.service.statemachine.event;
 
 import guru.springframework.beer.order.service.web.model.BaseItem;
 import guru.springframework.beer.order.service.web.model.BeerOrderDto;

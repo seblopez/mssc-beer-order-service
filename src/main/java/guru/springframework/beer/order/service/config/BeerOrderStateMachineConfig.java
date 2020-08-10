@@ -40,17 +40,28 @@ public class BeerOrderStateMachineConfig extends StateMachineConfigurerAdapter<B
     public void configure(StateMachineTransitionConfigurer<BeerOrderStatus, BeerOrderEvent> transitions) throws Exception {
         transitions
                 .withExternal()
-                    .source(BeerOrderStatus.NEW).target(BeerOrderStatus.NEW)
+                    .source(BeerOrderStatus.NEW).target(BeerOrderStatus.VALIDATION_PENDING)
                         .event(BeerOrderEvent.VALIDATE_ORDER)
                         .action(validateOrderAction)
                 .and().withExternal()
-                    .source(BeerOrderStatus.NEW).target(BeerOrderStatus.VALIDATED).event(BeerOrderEvent.VALIDATION_PASSED)
+                    .source(BeerOrderStatus.VALIDATION_PENDING).target(BeerOrderStatus.VALIDATED)
+                        .event(BeerOrderEvent.VALIDATION_PASSED)
                 .and().withExternal()
-                    .source(BeerOrderStatus.NEW).target(BeerOrderStatus.VALIDATION_EXCEPTION).event(BeerOrderEvent.VALIDATION_FAILED)
+                    .source(BeerOrderStatus.VALIDATION_PENDING).target(BeerOrderStatus.VALIDATION_EXCEPTION)
+                        .event(BeerOrderEvent.VALIDATION_FAILED)
                 .and().withExternal()
                     .source(BeerOrderStatus.VALIDATED).target(BeerOrderStatus.ALLOCATION_PENDING)
                         .event(BeerOrderEvent.ALLOCATE_ORDER)
-                        .action(allocateOrderAction);
+                        .action(allocateOrderAction)
+                .and().withExternal()
+                    .source(BeerOrderStatus.ALLOCATION_PENDING).target(BeerOrderStatus.ALLOCATED)
+                        .event(BeerOrderEvent.ALLOCATION_SUCCESS)
+                .and().withExternal()
+                    .source(BeerOrderStatus.ALLOCATION_PENDING).target(BeerOrderStatus.ALLOCATION_EXCEPTION)
+                        .event(BeerOrderEvent.ALLOCATION_FAILED)
+                .and().withExternal()
+                    .source(BeerOrderStatus.ALLOCATION_PENDING).target(BeerOrderStatus.PENDING_INVENTORY)
+                        .event(BeerOrderEvent.ALLOCATION_NO_INVENTORY);
 
     }
 
@@ -59,11 +70,11 @@ public class BeerOrderStateMachineConfig extends StateMachineConfigurerAdapter<B
         StateMachineListenerAdapter<BeerOrderStatus, BeerOrderEvent> adapter = new StateMachineListenerAdapter<>() {
             @Override
             public void stateChanged(State<BeerOrderStatus, BeerOrderEvent> from, State<BeerOrderStatus, BeerOrderEvent> to) {
-                log.info(String.format("stateChanged(from: %s, to: %s", from.getId(), to.getId()));
+                log.debug(String.format("stateChanged(from: %s, to: %s", from.getId(), to.getId()));
             }
         };
 
-        config.withConfiguration()
-                .listener(adapter);
+        config.withConfiguration().listener(adapter);
+
     }
 }

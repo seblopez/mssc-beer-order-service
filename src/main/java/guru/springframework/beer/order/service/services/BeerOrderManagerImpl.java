@@ -3,8 +3,8 @@ package guru.springframework.beer.order.service.services;
 import guru.springframework.beer.order.service.domain.BeerOrder;
 import guru.springframework.beer.order.service.domain.BeerOrderEvent;
 import guru.springframework.beer.order.service.domain.BeerOrderStatus;
-import guru.springframework.beer.order.service.interceptor.BeerOrderStateChangeInterceptor;
 import guru.springframework.beer.order.service.repositories.BeerOrderRepository;
+import guru.springframework.beer.order.service.statemachine.interceptor.BeerOrderStateChangeInterceptor;
 import guru.springframework.beer.order.service.web.model.BeerOrderDto;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -48,20 +48,20 @@ public class BeerOrderManagerImpl implements BeerOrderManager {
     @Transactional
     @Override
     public void processBeerOrderValidation(UUID beerOrderId, Boolean isValid) {
-        final BeerOrder beerOrder = beerOrderRepository.getOne(beerOrderId);
-
-        if(isValid) {
-            this.sendBeerOrderEvent(beerOrder, BeerOrderEvent.VALIDATION_PASSED);
-            final BeerOrder validatedOrder = this.beerOrderRepository.getOne(beerOrderId);
-
-            this.sendBeerOrderEvent(validatedOrder, BeerOrderEvent.ALLOCATE_ORDER);
-
-        } else {
-            this.sendBeerOrderEvent(beerOrder, BeerOrderEvent.VALIDATION_FAILED);
-        }
+        beerOrderRepository.findById(beerOrderId)
+                .ifPresentOrElse(order -> {
+                    if(isValid) {
+                        this.sendBeerOrderEvent(order, BeerOrderEvent.VALIDATION_PASSED);
+                        final BeerOrder validatedOrder = this.beerOrderRepository.findOneById(beerOrderId);
+                        this.sendBeerOrderEvent(validatedOrder, BeerOrderEvent.ALLOCATE_ORDER);
+                    } else {
+                        this.sendBeerOrderEvent(order, BeerOrderEvent.VALIDATION_FAILED);
+                    }
+                }, () -> log.error(MessageFormat.format("Order Id {0} not found!", beerOrderId)));
 
     }
 
+    @Transactional
     @Override
     public void processBeerOrderAllocation(BeerOrderDto order, Boolean orderAllocated, Boolean error) {
         if(error) {
@@ -142,7 +142,7 @@ public class BeerOrderManagerImpl implements BeerOrderManager {
                 .doWithAllRegions(sm -> {
                     sm.addStateMachineInterceptor(beerOrderStateChangeInterceptor);
                     Map<String, Object> eventHeaders = new HashMap<>();
-                    eventHeaders.put("order", order);
+                    eventHeaders.put(BEER_ORDER_ID_HDR, order);
                     sm.resetStateMachine(new DefaultStateMachineContext<>(order.getOrderStatus(), null, eventHeaders, null));
                 });
 

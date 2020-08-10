@@ -78,7 +78,7 @@ class BeerOrderManagerImplIT {
     }
 
     @Test
-    void beerOrderAllocatedOk() throws JsonProcessingException, InterruptedException {
+    void beerOrderAllocatedOk() throws JsonProcessingException {
         final String upc = "1234567890123";
         final BeerDto beerDto = BeerDto.builder()
                 .id(beerId)
@@ -109,6 +109,37 @@ class BeerOrderManagerImplIT {
         assertEquals(BeerOrderStatus.ALLOCATED, retrievedBeerOrder.getOrderStatus());
         retrievedBeerOrder.getBeerOrderLines()
                 .forEach(beerOrderLine -> assertEquals(beerOrderLine.getOrderQuantity(), beerOrderLine.getQuantityAllocated()));
+
+    }
+
+    @Test
+    void beerOrderPickedUpOk() throws JsonProcessingException {
+        final String upc = "1234567890123";
+        final BeerDto beerDto = BeerDto.builder()
+                .id(beerId)
+                .beerName("Antares")
+                .upc(upc)
+                .beerStyle("IPA")
+                .build();
+
+        final BeerOrder beerOrderToSave = createBeerOrder();
+        beerOrderToSave.setOrderStatus(BeerOrderStatus.ALLOCATED);
+
+        final BeerOrder savedBeerOrder = beerOrderRepository.saveAndFlush(beerOrderToSave);
+
+        final BeerOrder beerOrderFound = beerOrderRepository.findById(savedBeerOrder.getId()).get();
+
+        beerOrderManager.processBeerOrderPickUp(beerOrderFound.getId());
+
+        await().untilAsserted(() -> {
+            final BeerOrder beerOrderPickedUp = beerOrderRepository.findById(beerOrderFound.getId()).get();
+            assertEquals(BeerOrderStatus.PICKED_UP, beerOrderPickedUp.getOrderStatus());
+        });
+
+        final BeerOrder beerOrderPickedUp = beerOrderRepository.findById(beerOrderFound.getId()).get();
+
+        assertNotNull(beerOrderPickedUp);
+        assertEquals(BeerOrderStatus.PICKED_UP, beerOrderPickedUp.getOrderStatus());
 
     }
 

@@ -13,4 +13,6 @@ public interface BeerOrderManager {
 
     void processBeerOrderAllocation(BeerOrderDto order, Boolean orderAllocated, Boolean error);
 
+    void processBeerOrderPickUp(UUID beerOrderId);
+
 }

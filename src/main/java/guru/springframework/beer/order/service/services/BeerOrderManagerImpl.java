@@ -65,13 +65,13 @@ public class BeerOrderManagerImpl implements BeerOrderManager {
 
     @Transactional
     @Override
-    public void processBeerOrderAllocation(BeerOrderDto order, Boolean orderAllocated, Boolean error) {
+    public void processBeerOrderAllocation(BeerOrderDto order, Boolean pendingInventory, Boolean error) {
         if(error) {
             processAllocationError(order);
-        } else if(orderAllocated) {
-            processSuccessfulAllocation(order);
-        } else {
+        } else if(pendingInventory) {
             processPendingAllocation(order);
+        } else {
+            processSuccessfulAllocation(order);
         }
 
     }

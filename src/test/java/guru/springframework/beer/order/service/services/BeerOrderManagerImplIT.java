@@ -15,7 +15,6 @@ import guru.springframework.beer.order.service.repositories.BeerOrderRepository;
 import guru.springframework.beer.order.service.repositories.CustomerRepository;
 import lombok.extern.slf4j.Slf4j;
 import org.junit.jupiter.api.BeforeEach;
-import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -35,7 +34,6 @@ import static org.awaitility.Awaitility.await;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 
-@Disabled
 @Slf4j
 @ExtendWith(WireMockExtension.class)
 @SpringBootTest
@@ -96,13 +94,12 @@ class BeerOrderManagerImplIT {
 
         await().untilAsserted(() -> {
             final BeerOrder beerOrderFound = beerOrderRepository.findById(savedBeerOrder.getId()).get();
-
-            assertEquals(BeerOrderStatus.ALLOCATION_PENDING, beerOrderFound.getOrderStatus());
+            assertEquals(BeerOrderStatus.ALLOCATED, beerOrderFound.getOrderStatus());
         });
 
         final BeerOrder retrievedBeerOrder = beerOrderRepository.findById(savedBeerOrder.getId()).get();
 
-        assertNotNull(savedBeerOrder);
+        assertNotNull(retrievedBeerOrder);
         assertEquals(BeerOrderStatus.ALLOCATED, retrievedBeerOrder.getOrderStatus());
 
     }

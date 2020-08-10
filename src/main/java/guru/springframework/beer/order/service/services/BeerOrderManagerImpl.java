@@ -37,7 +37,7 @@ public class BeerOrderManagerImpl implements BeerOrderManager {
         order.setId(null);
         order.setOrderStatus(BeerOrderStatus.NEW);
 
-        final BeerOrder savedOrder = beerOrderRepository.save(order);
+        final BeerOrder savedOrder = beerOrderRepository.saveAndFlush(order);
 
         this.sendBeerOrderEvent(savedOrder, BeerOrderEvent.VALIDATE_ORDER);
 
@@ -48,7 +48,9 @@ public class BeerOrderManagerImpl implements BeerOrderManager {
     @Transactional
     @Override
     public void processBeerOrderValidation(UUID beerOrderId, Boolean isValid) {
-        beerOrderRepository.findById(beerOrderId)
+        final Optional<BeerOrder> beerOrderOptional = beerOrderRepository.findById(beerOrderId);
+
+        beerOrderOptional
                 .ifPresentOrElse(order -> {
                     if(isValid) {
                         this.sendBeerOrderEvent(order, BeerOrderEvent.VALIDATION_PASSED);

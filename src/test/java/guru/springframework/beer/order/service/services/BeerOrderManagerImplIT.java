@@ -21,7 +21,6 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.test.context.TestConfiguration;
 import org.springframework.context.annotation.Bean;
-import org.springframework.transaction.annotation.Transactional;
 
 import java.util.HashSet;
 import java.util.Set;
@@ -77,7 +76,6 @@ class BeerOrderManagerImplIT {
                 .build());
     }
 
-    @Transactional
     @Test
     void beerOrderAllocatedOk() throws JsonProcessingException, InterruptedException {
         final String upc = "1234567890123";

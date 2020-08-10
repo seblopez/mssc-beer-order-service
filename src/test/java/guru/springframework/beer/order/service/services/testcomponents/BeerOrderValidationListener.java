@@ -17,7 +17,7 @@ public class BeerOrderValidationListener {
     private final JmsTemplate jmsTemplate;
 
     @JmsListener(destination = JmsConfig.BEER_ORDER_VALIDATE_QUEUE)
-    public void listen(Message msg) {
+    public void listener(Message msg) {
         ValidateBeerOrderRequest request = (ValidateBeerOrderRequest) msg.getPayload();
 
         log.debug("Testing listener run");

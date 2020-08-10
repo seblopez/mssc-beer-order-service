@@ -12,6 +12,7 @@ import org.springframework.statemachine.state.State;
 import org.springframework.statemachine.support.StateMachineInterceptorAdapter;
 import org.springframework.statemachine.transition.Transition;
 import org.springframework.stereotype.Component;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.text.MessageFormat;
 import java.util.Optional;
@@ -23,17 +24,17 @@ import java.util.UUID;
 public class BeerOrderStateChangeInterceptor extends StateMachineInterceptorAdapter<BeerOrderStatus, BeerOrderEvent> {
     private final BeerOrderRepository beerOrderRepository;
 
+    @Transactional
     @Override
     public void preStateChange(State<BeerOrderStatus, BeerOrderEvent> state, Message<BeerOrderEvent> message, Transition<BeerOrderStatus, BeerOrderEvent> transition, StateMachine<BeerOrderStatus, BeerOrderEvent> stateMachine) {
         Optional.ofNullable(message)
                 .flatMap(msg -> Optional.ofNullable((String) msg.getHeaders().getOrDefault(BeerOrderManagerImpl.BEER_ORDER_ID_HDR, "")))
-                .ifPresent(orderId -> {
-                    beerOrderRepository.findById(UUID.fromString(orderId))
-                            .ifPresentOrElse(order -> {
-                                order.setOrderStatus(state.getId());
-                                log.debug(MessageFormat.format("Saving order {0} with new status {1}", orderId, order.getOrderStatus()));
-                                beerOrderRepository.saveAndFlush(order);
-                            }, () -> log.error(MessageFormat.format("Order Id {0} not found!", orderId)));
-                });
+                .ifPresent(orderId ->
+                        beerOrderRepository.findById(UUID.fromString(orderId))
+                                .ifPresentOrElse(order -> {
+                                    order.setOrderStatus(state.getId());
+                                    log.debug(MessageFormat.format("Saving order {0} with new status {1}", orderId, order.getOrderStatus()));
+                                    beerOrderRepository.saveAndFlush(order);
+                        }, () -> log.error(MessageFormat.format("Beer Order Id {0} not found!", orderId))));
     }
 }

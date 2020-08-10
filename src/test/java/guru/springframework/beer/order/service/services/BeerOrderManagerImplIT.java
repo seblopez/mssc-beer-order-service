@@ -113,6 +113,30 @@ class BeerOrderManagerImplIT {
     }
 
     @Test
+    void beerOrderAllocatedFailed() throws JsonProcessingException {
+        final String upc = "1234567890123";
+        final BeerDto beerDto = BeerDto.builder()
+                .id(beerId)
+                .beerName("Antares")
+                .upc(upc)
+                .beerStyle("IPA")
+                .build();
+
+        wireMockServer.stubFor(get(BeerClientRestTemplateImpl.BEER_UPC_API_PATH + upc)
+                .willReturn(okJson(objectMapper.writeValueAsString(beerDto))));
+
+        final BeerOrder beerOrder = createBeerOrder();
+        beerOrder.setCustomerRef("fail-validation");
+
+        final BeerOrder savedBeerOrder = beerOrderManager.newBeerOrder(beerOrder);
+
+        await().untilAsserted(() -> {
+            final BeerOrder beerOrderFound = beerOrderRepository.findById(savedBeerOrder.getId()).get();
+            assertEquals(BeerOrderStatus.VALIDATION_EXCEPTION, beerOrderFound.getOrderStatus());
+        });
+    }
+
+    @Test
     void beerOrderPickedUpOk() throws JsonProcessingException {
         final String upc = "1234567890123";
         final BeerDto beerDto = BeerDto.builder()

@@ -3,6 +3,7 @@ package guru.springframework.beer.order.service.services.testcomponents;
 import guru.springframework.beer.order.service.config.JmsConfig;
 import guru.springframework.beer.order.service.statemachine.event.ValidateBeerOrderRequest;
 import guru.springframework.beer.order.service.statemachine.event.ValidateBeerOrderResponse;
+import guru.springframework.beer.order.service.web.model.BeerOrderDto;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.jms.annotation.JmsListener;
@@ -21,10 +22,17 @@ public class BeerOrderValidationListener {
         ValidateBeerOrderRequest request = (ValidateBeerOrderRequest) msg.getPayload();
 
         log.debug("Testing validation listener run");
+
+        final BeerOrderDto beerOrderDto = request.getBeerOrderDto();
+
+        final String customerRef = beerOrderDto.getCustomerRef();
+        final boolean isValid = customerRef == null ||
+                (customerRef != null && !customerRef.equals("fail-validation"));
+
         jmsTemplate.convertAndSend(JmsConfig.BEER_ORDER_VALIDATE_RESPONSE_QUEUE,
                 ValidateBeerOrderResponse.builder()
-                        .isValid(true)
-                        .orderId(request.getBeerOrderDto().getId())
+                        .isValid(isValid)
+                        .orderId(beerOrderDto.getId())
                         .build());
 
     }

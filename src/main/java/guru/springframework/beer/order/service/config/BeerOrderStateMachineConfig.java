@@ -23,6 +23,7 @@ import java.util.EnumSet;
 public class BeerOrderStateMachineConfig extends StateMachineConfigurerAdapter<BeerOrderStatus, BeerOrderEvent> {
     private final Action<BeerOrderStatus, BeerOrderEvent> validateOrderAction;
     private final Action<BeerOrderStatus, BeerOrderEvent> allocateOrderAction;
+    private final Action<BeerOrderStatus, BeerOrderEvent> validateOrderFailedAction;
 
     @Override
     public void configure(StateMachineStateConfigurer<BeerOrderStatus, BeerOrderEvent> states) throws Exception {
@@ -49,6 +50,7 @@ public class BeerOrderStateMachineConfig extends StateMachineConfigurerAdapter<B
                 .and().withExternal()
                     .source(BeerOrderStatus.VALIDATION_PENDING).target(BeerOrderStatus.VALIDATION_EXCEPTION)
                         .event(BeerOrderEvent.VALIDATION_FAILED)
+                        .action(validateOrderFailedAction)
                 .and().withExternal()
                     .source(BeerOrderStatus.VALIDATED).target(BeerOrderStatus.ALLOCATION_PENDING)
                         .event(BeerOrderEvent.ALLOCATE_ORDER)

@@ -1,4 +1,4 @@
-package guru.springframework.beer.order.service.action;
+package guru.springframework.beer.order.service.statemachine.action;
 
 import guru.springframework.beer.order.service.domain.BeerOrderEvent;
 import guru.springframework.beer.order.service.domain.BeerOrderStatus;
@@ -12,12 +12,12 @@ import org.springframework.stereotype.Component;
 import java.text.MessageFormat;
 
 @Slf4j
-@RequiredArgsConstructor
 @Component
-public class ValidateOrderFailedAction implements Action<BeerOrderStatus, BeerOrderEvent> {
+@RequiredArgsConstructor
+public class PendingAllocationAction implements Action<BeerOrderStatus, BeerOrderEvent> {
     @Override
     public void execute(StateContext<BeerOrderStatus, BeerOrderEvent> stateContext) {
         final String orderId = (String) stateContext.getMessageHeaders().get(BeerOrderManagerImpl.BEER_ORDER_ID_HDR);
-        log.error(MessageFormat.format("Validation failed for order id {0}", orderId));
+        log.warn(MessageFormat.format("Allocation is pending for order id {0}", orderId));
     }
 }

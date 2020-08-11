@@ -1,4 +1,4 @@
-package guru.springframework.beer.order.service.action;
+package guru.springframework.beer.order.service.statemachine.action;
 
 import guru.springframework.beer.order.service.config.JmsConfig;
 import guru.springframework.beer.order.service.domain.BeerOrderEvent;

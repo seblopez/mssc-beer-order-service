@@ -11,6 +11,8 @@ import org.springframework.jms.core.JmsTemplate;
 import org.springframework.messaging.Message;
 import org.springframework.stereotype.Component;
 
+import java.util.concurrent.atomic.AtomicBoolean;
+
 @Slf4j
 @RequiredArgsConstructor
 @Component
@@ -23,16 +25,26 @@ public class BeerOrderAllocationListener {
 
         final BeerOrderDto beerOrderDto = request.getBeerOrderDto();
 
+        AtomicBoolean allocationError = new AtomicBoolean(false);
+        AtomicBoolean pendingInventory = new AtomicBoolean(false);
+
         beerOrderDto.getBeerOrderLines()
-                .forEach(beerOrderLineDto ->
-                        beerOrderLineDto.setQuantityAllocated(beerOrderLineDto.getOrderQuantity()));
+                .forEach(beerOrderLineDto -> {
+                    final Integer orderQuantity = beerOrderLineDto.getOrderQuantity();
+                    if(orderQuantity <= 0) {
+                        allocationError.set(true);
+                    } else if(orderQuantity > 1000) {
+                        pendingInventory.set(true);
+                    } else {
+                        beerOrderLineDto.setQuantityAllocated(beerOrderLineDto.getOrderQuantity());
+                    }});
 
         log.debug("Testing allocation listener run");
         jmsTemplate.convertAndSend(JmsConfig.ALLOCATE_ORDER_RESPONSE_QUEUE,
                 AllocateOrderResponse.builder()
                         .beerOrderDto(beerOrderDto)
-                        .allocationError(false)
-                        .pendingInventory(false)
+                        .allocationError(allocationError.getPlain())
+                        .pendingInventory(pendingInventory.getPlain())
                         .build());
     }
 

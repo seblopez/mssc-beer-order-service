@@ -90,7 +90,7 @@ class BeerOrderManagerImplIT {
         wireMockServer.stubFor(get(BeerClientRestTemplateImpl.BEER_UPC_API_PATH + upc)
             .willReturn(okJson(objectMapper.writeValueAsString(beerDto))));
 
-        final BeerOrder savedBeerOrder = beerOrderManager.newBeerOrder(createBeerOrder());
+        final BeerOrder savedBeerOrder = beerOrderManager.newBeerOrder(createBeerOrder(1));
 
         await().untilAsserted(() -> {
             final BeerOrder beerOrderFound = beerOrderRepository.findById(savedBeerOrder.getId()).get();
@@ -113,7 +113,7 @@ class BeerOrderManagerImplIT {
     }
 
     @Test
-    void beerOrderAllocatedFailed() throws JsonProcessingException {
+    void beerOrderValidationFailed() throws JsonProcessingException {
         final String upc = "1234567890123";
         final BeerDto beerDto = BeerDto.builder()
                 .id(beerId)
@@ -125,7 +125,7 @@ class BeerOrderManagerImplIT {
         wireMockServer.stubFor(get(BeerClientRestTemplateImpl.BEER_UPC_API_PATH + upc)
                 .willReturn(okJson(objectMapper.writeValueAsString(beerDto))));
 
-        final BeerOrder beerOrder = createBeerOrder();
+        final BeerOrder beerOrder = createBeerOrder(1);
         beerOrder.setCustomerRef("fail-validation");
 
         final BeerOrder savedBeerOrder = beerOrderManager.newBeerOrder(beerOrder);
@@ -134,6 +134,70 @@ class BeerOrderManagerImplIT {
             final BeerOrder beerOrderFound = beerOrderRepository.findById(savedBeerOrder.getId()).get();
             assertEquals(BeerOrderStatus.VALIDATION_EXCEPTION, beerOrderFound.getOrderStatus());
         });
+
+        final BeerOrder beerOrderWithException = beerOrderRepository.findById(savedBeerOrder.getId()).get();
+
+        assertNotNull(beerOrderWithException);
+        assertEquals(BeerOrderStatus.VALIDATION_EXCEPTION, beerOrderWithException.getOrderStatus());
+
+    }
+
+    @Test
+    void beerOrderAllocationFailed() throws JsonProcessingException {
+        final String upc = "1234567890123";
+        final BeerDto beerDto = BeerDto.builder()
+                .id(beerId)
+                .beerName("Antares")
+                .upc(upc)
+                .beerStyle("IPA")
+                .build();
+
+        wireMockServer.stubFor(get(BeerClientRestTemplateImpl.BEER_UPC_API_PATH + upc)
+                .willReturn(okJson(objectMapper.writeValueAsString(beerDto))));
+
+        final BeerOrder beerOrder = createBeerOrder(0);
+
+        final BeerOrder savedBeerOrder = beerOrderManager.newBeerOrder(beerOrder);
+
+        await().untilAsserted(() -> {
+            final BeerOrder beerOrderFound = beerOrderRepository.findById(savedBeerOrder.getId()).get();
+            assertEquals(BeerOrderStatus.ALLOCATION_EXCEPTION, beerOrderFound.getOrderStatus());
+        });
+
+        final BeerOrder beerOrderWithException = beerOrderRepository.findById(savedBeerOrder.getId()).get();
+
+        assertNotNull(beerOrderWithException);
+        assertEquals(BeerOrderStatus.ALLOCATION_EXCEPTION, beerOrderWithException.getOrderStatus());
+
+    }
+
+    @Test
+    void beerOrderAllocationHasPendingInventory() throws JsonProcessingException {
+        final String upc = "1234567890123";
+        final BeerDto beerDto = BeerDto.builder()
+                .id(beerId)
+                .beerName("Antares")
+                .upc(upc)
+                .beerStyle("IPA")
+                .build();
+
+        wireMockServer.stubFor(get(BeerClientRestTemplateImpl.BEER_UPC_API_PATH + upc)
+                .willReturn(okJson(objectMapper.writeValueAsString(beerDto))));
+
+        final BeerOrder beerOrder = createBeerOrder(1001);
+
+        final BeerOrder savedBeerOrder = beerOrderManager.newBeerOrder(beerOrder);
+
+        await().untilAsserted(() -> {
+            final BeerOrder beerOrderFound = beerOrderRepository.findById(savedBeerOrder.getId()).get();
+            assertEquals(BeerOrderStatus.PENDING_INVENTORY, beerOrderFound.getOrderStatus());
+        });
+
+        final BeerOrder beerOrderWithException = beerOrderRepository.findById(savedBeerOrder.getId()).get();
+
+        assertNotNull(beerOrderWithException);
+        assertEquals(BeerOrderStatus.PENDING_INVENTORY, beerOrderWithException.getOrderStatus());
+
     }
 
     @Test
@@ -146,7 +210,7 @@ class BeerOrderManagerImplIT {
                 .beerStyle("IPA")
                 .build();
 
-        final BeerOrder beerOrderToSave = createBeerOrder();
+        final BeerOrder beerOrderToSave = createBeerOrder(1);
         beerOrderToSave.setOrderStatus(BeerOrderStatus.ALLOCATED);
 
         final BeerOrder savedBeerOrder = beerOrderRepository.saveAndFlush(beerOrderToSave);
@@ -167,7 +231,7 @@ class BeerOrderManagerImplIT {
 
     }
 
-    private BeerOrder createBeerOrder() {
+    private BeerOrder createBeerOrder(Integer orderQuantity) {
         BeerOrder beerOrder = BeerOrder.builder()
                 .customer(testCustomer)
                 .build();
@@ -176,7 +240,7 @@ class BeerOrderManagerImplIT {
         lines.add(BeerOrderLine.builder()
                         .beerId(beerId)
                         .upc("1234567890123")
-                        .orderQuantity(1)
+                        .orderQuantity(orderQuantity)
                         .beerOrder(beerOrder)
                         .build());
 

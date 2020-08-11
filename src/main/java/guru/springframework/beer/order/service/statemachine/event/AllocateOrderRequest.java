@@ -13,7 +13,6 @@ import java.io.Serializable;
 @Builder
 @Data
 public class AllocateOrderRequest implements Serializable {
-    private static final long serialVersionUID = -2302508160775761564L
-            ;
+    private static final long serialVersionUID = -2302508160775761564L;
     private BeerOrderDto beerOrderDto;
 }

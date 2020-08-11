@@ -24,24 +24,44 @@ public class BeerOrderAllocationListener {
         final BeerOrderDto beerOrderDto = request.getBeerOrderDto();
 
         final String customerRef = beerOrderDto.getCustomerRef();
-        final boolean allocationError = customerRef != null && customerRef.equals("allocation-failed");
-        final boolean pendingInventory = customerRef != null && customerRef.equals("pending-inventory");
 
-        beerOrderDto.getBeerOrderLines()
-                .forEach(beerOrderLineDto -> {
-                    if(pendingInventory) {
-                        beerOrderLineDto.setQuantityAllocated(beerOrderLineDto.getOrderQuantity() - 1);
-                    } else {
-                        beerOrderLineDto.setQuantityAllocated(beerOrderLineDto.getOrderQuantity());
-                    }});
+        if(customerRef == null) {
+            log.debug("Allocation listener will allocate this order");
 
-        log.debug("Testing allocation listener run");
-        jmsTemplate.convertAndSend(JmsConfig.ALLOCATE_ORDER_RESPONSE_QUEUE,
-                AllocateOrderResponse.builder()
-                        .beerOrderDto(beerOrderDto)
-                        .allocationError(allocationError)
-                        .pendingInventory(pendingInventory)
-                        .build());
+            beerOrderDto.getBeerOrderLines()
+                    .forEach(beerOrderLineDto -> {
+                            beerOrderLineDto.setQuantityAllocated(beerOrderLineDto.getOrderQuantity());
+                        });
+
+            jmsTemplate.convertAndSend(JmsConfig.ALLOCATE_ORDER_RESPONSE_QUEUE,
+                    AllocateOrderResponse.builder()
+                            .beerOrderDto(beerOrderDto)
+                            .allocationError(false)
+                            .pendingInventory(false)
+                            .build());
+        } else if(!customerRef.equals("cancel-order-allocation")) {
+            final boolean allocationError = customerRef.equals("allocation-failed");
+            final boolean pendingInventory = customerRef.equals("pending-inventory");
+
+            log.debug("Allocation listener will either fail the allocation of this order or it will leave it pending");
+
+            beerOrderDto.getBeerOrderLines()
+                    .forEach(beerOrderLineDto -> {
+                        if(pendingInventory) {
+                            beerOrderLineDto.setQuantityAllocated(beerOrderLineDto.getOrderQuantity() - 1);
+                        }
+                    });
+
+            jmsTemplate.convertAndSend(JmsConfig.ALLOCATE_ORDER_RESPONSE_QUEUE,
+                    AllocateOrderResponse.builder()
+                            .beerOrderDto(beerOrderDto)
+                            .allocationError(allocationError)
+                            .pendingInventory(pendingInventory)
+                            .build());
+        } else {
+
+        }
+
     }
 
 }

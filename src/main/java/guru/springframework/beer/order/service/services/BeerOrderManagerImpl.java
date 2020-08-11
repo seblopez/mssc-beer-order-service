@@ -85,6 +85,14 @@ public class BeerOrderManagerImpl implements BeerOrderManager {
                 }, () -> log.error(MessageFormat.format("Order Id {0} not found while processing allocation error", beerOrderId)));
     }
 
+    @Override
+    public void processBeerOrderCancellation(UUID beerOrderId) {
+        beerOrderRepository.findById(beerOrderId)
+                .ifPresentOrElse(order -> {
+                    sendBeerOrderEvent(order, BeerOrderEvent.CANCEL_ORDER);
+                }, () -> log.error(MessageFormat.format("Order Id {0} not found while processing allocation error", beerOrderId)));
+    }
+
     private void processAllocationError(BeerOrderDto beerOrderDto) {
         final UUID orderId = beerOrderDto.getId();
         beerOrderRepository.findById(orderId)

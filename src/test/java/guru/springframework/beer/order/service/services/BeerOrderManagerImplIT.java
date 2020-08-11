@@ -15,6 +15,7 @@ import guru.springframework.beer.order.service.domain.Customer;
 import guru.springframework.beer.order.service.repositories.BeerOrderRepository;
 import guru.springframework.beer.order.service.repositories.CustomerRepository;
 import guru.springframework.beer.order.service.statemachine.event.AllocationFailureEvent;
+import guru.springframework.beer.order.service.statemachine.event.DeallocateOrderRequest;
 import lombok.extern.slf4j.Slf4j;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -63,6 +64,15 @@ class BeerOrderManagerImplIT {
 
     UUID beerId = UUID.randomUUID();
 
+    private static final String UPC = "1234567890123";
+
+    private final BeerDto beerDto = BeerDto.builder()
+            .id(beerId)
+            .beerName("Antares")
+            .upc(UPC)
+            .beerStyle("IPA")
+            .build();
+
     @TestConfiguration
     static class RestTemplateBuilderProvider {
 
@@ -85,15 +95,7 @@ class BeerOrderManagerImplIT {
 
     @Test
     void beerOrderAllocatedOk() throws JsonProcessingException {
-        final String upc = "1234567890123";
-        final BeerDto beerDto = BeerDto.builder()
-                .id(beerId)
-                .beerName("Antares")
-                .upc(upc)
-                .beerStyle("IPA")
-                .build();
-
-        wireMockServer.stubFor(get(BeerClientRestTemplateImpl.BEER_UPC_API_PATH + upc)
+        wireMockServer.stubFor(get(BeerClientRestTemplateImpl.BEER_UPC_API_PATH + UPC)
             .willReturn(okJson(objectMapper.writeValueAsString(beerDto))));
 
         final BeerOrder savedBeerOrder = beerOrderManager.newBeerOrder(createBeerOrder());
@@ -120,15 +122,7 @@ class BeerOrderManagerImplIT {
 
     @Test
     void beerOrderValidationFailed() throws JsonProcessingException {
-        final String upc = "1234567890123";
-        final BeerDto beerDto = BeerDto.builder()
-                .id(beerId)
-                .beerName("Antares")
-                .upc(upc)
-                .beerStyle("IPA")
-                .build();
-
-        wireMockServer.stubFor(get(BeerClientRestTemplateImpl.BEER_UPC_API_PATH + upc)
+        wireMockServer.stubFor(get(BeerClientRestTemplateImpl.BEER_UPC_API_PATH + UPC)
                 .willReturn(okJson(objectMapper.writeValueAsString(beerDto))));
 
         final BeerOrder beerOrder = createBeerOrder();
@@ -151,15 +145,7 @@ class BeerOrderManagerImplIT {
 
     @Test
     void beerOrderAllocationFailed() throws JsonProcessingException {
-        final String upc = "1234567890123";
-        final BeerDto beerDto = BeerDto.builder()
-                .id(beerId)
-                .beerName("Antares")
-                .upc(upc)
-                .beerStyle("IPA")
-                .build();
-
-        wireMockServer.stubFor(get(BeerClientRestTemplateImpl.BEER_UPC_API_PATH + upc)
+        wireMockServer.stubFor(get(BeerClientRestTemplateImpl.BEER_UPC_API_PATH + UPC)
                 .willReturn(okJson(objectMapper.writeValueAsString(beerDto))));
 
         final BeerOrder beerOrder = createBeerOrder();
@@ -184,16 +170,69 @@ class BeerOrderManagerImplIT {
     }
 
     @Test
-    void beerOrderAllocationHasPendingInventory() throws JsonProcessingException {
-        final String upc = "1234567890123";
-        final BeerDto beerDto = BeerDto.builder()
-                .id(beerId)
-                .beerName("Antares")
-                .upc(upc)
-                .beerStyle("IPA")
-                .build();
+    void beerOrderCancelWhileValidationPendingOk() throws JsonProcessingException {
+        wireMockServer.stubFor(get(BeerClientRestTemplateImpl.BEER_UPC_API_PATH + UPC)
+                .willReturn(okJson(objectMapper.writeValueAsString(beerDto))));
 
-        wireMockServer.stubFor(get(BeerClientRestTemplateImpl.BEER_UPC_API_PATH + upc)
+        final BeerOrder beerOrder = createBeerOrder();
+        beerOrder.setCustomerRef("cancel-order-validation");
+
+        final BeerOrder savedBeerOrder = beerOrderManager.newBeerOrder(beerOrder);
+
+        await().untilAsserted(() -> {
+            final BeerOrder beerOrderFound = beerOrderRepository.findById(savedBeerOrder.getId()).get();
+            assertEquals(BeerOrderStatus.VALIDATION_PENDING, beerOrderFound.getOrderStatus());
+        });
+
+        beerOrderManager.processBeerOrderCancellation(savedBeerOrder.getId());
+
+        await().untilAsserted(() -> {
+            final BeerOrder beerOrderFound = beerOrderRepository.findById(savedBeerOrder.getId()).get();
+            assertEquals(BeerOrderStatus.CANCELLED, beerOrderFound.getOrderStatus());
+        });
+
+        final BeerOrder cancelledBeerOrder = beerOrderRepository.findById(savedBeerOrder.getId()).get();
+
+        assertNotNull(cancelledBeerOrder);
+        assertEquals(BeerOrderStatus.CANCELLED, cancelledBeerOrder.getOrderStatus());
+
+    }
+
+    @Test
+    void beerOrderCancelAllocatedOk() throws JsonProcessingException {
+        wireMockServer.stubFor(get(BeerClientRestTemplateImpl.BEER_UPC_API_PATH + UPC)
+                .willReturn(okJson(objectMapper.writeValueAsString(beerDto))));
+
+        final BeerOrder beerOrder = createBeerOrder();
+
+        final BeerOrder savedBeerOrder = beerOrderManager.newBeerOrder(beerOrder);
+
+        await().untilAsserted(() -> {
+            final BeerOrder beerOrderFound = beerOrderRepository.findById(savedBeerOrder.getId()).get();
+            assertEquals(BeerOrderStatus.ALLOCATED, beerOrderFound.getOrderStatus());
+        });
+
+        beerOrderManager.processBeerOrderCancellation(savedBeerOrder.getId());
+
+        await().untilAsserted(() -> {
+            final BeerOrder beerOrderFound = beerOrderRepository.findById(savedBeerOrder.getId()).get();
+            assertEquals(BeerOrderStatus.CANCELLED, beerOrderFound.getOrderStatus());
+        });
+
+        final BeerOrder cancelledBeerOrder = beerOrderRepository.findById(savedBeerOrder.getId()).get();
+
+        final DeallocateOrderRequest deallocateOrderRequest = (DeallocateOrderRequest) jmsTemplate.receiveAndConvert(JmsConfig.DEALLOCATE_ORDER_REQUEST_QUEUE);
+
+        assertNotNull(cancelledBeerOrder);
+        assertEquals(BeerOrderStatus.CANCELLED, cancelledBeerOrder.getOrderStatus());
+        assertNotNull(deallocateOrderRequest);
+        assertEquals(cancelledBeerOrder.getId(), deallocateOrderRequest.getBeerOrderDto().getId());
+
+    }
+
+    @Test
+    void beerOrderAllocationHasPendingInventory() throws JsonProcessingException {
+        wireMockServer.stubFor(get(BeerClientRestTemplateImpl.BEER_UPC_API_PATH + UPC)
                 .willReturn(okJson(objectMapper.writeValueAsString(beerDto))));
 
         final BeerOrder beerOrder = createBeerOrder();
@@ -215,14 +254,6 @@ class BeerOrderManagerImplIT {
 
     @Test
     void beerOrderPickedUpOk() {
-        final String upc = "1234567890123";
-        final BeerDto beerDto = BeerDto.builder()
-                .id(beerId)
-                .beerName("Antares")
-                .upc(upc)
-                .beerStyle("IPA")
-                .build();
-
         final BeerOrder beerOrderToSave = createBeerOrder();
         beerOrderToSave.setOrderStatus(BeerOrderStatus.ALLOCATED);
 

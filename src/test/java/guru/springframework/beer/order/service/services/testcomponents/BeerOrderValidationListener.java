@@ -26,14 +26,20 @@ public class BeerOrderValidationListener {
         final BeerOrderDto beerOrderDto = request.getBeerOrderDto();
 
         final String customerRef = beerOrderDto.getCustomerRef();
-        final boolean isValid = customerRef == null ||
-                (customerRef != null && !customerRef.equals("fail-validation"));
 
-        jmsTemplate.convertAndSend(JmsConfig.BEER_ORDER_VALIDATE_RESPONSE_QUEUE,
-                ValidateBeerOrderResponse.builder()
-                        .isValid(isValid)
-                        .orderId(beerOrderDto.getId())
-                        .build());
+        if(customerRef == null) {
+            jmsTemplate.convertAndSend(JmsConfig.BEER_ORDER_VALIDATE_RESPONSE_QUEUE,
+                    ValidateBeerOrderResponse.builder()
+                            .isValid(true)
+                            .orderId(beerOrderDto.getId())
+                            .build());
+        } else if(!customerRef.equals("cancel-order-validation")){
+            jmsTemplate.convertAndSend(JmsConfig.BEER_ORDER_VALIDATE_RESPONSE_QUEUE,
+                    ValidateBeerOrderResponse.builder()
+                            .isValid(!customerRef.equals("fail-validation"))
+                            .orderId(beerOrderDto.getId())
+                            .build());
+        }
 
     }
 }

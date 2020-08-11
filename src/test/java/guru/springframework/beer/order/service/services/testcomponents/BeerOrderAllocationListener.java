@@ -11,8 +11,6 @@ import org.springframework.jms.core.JmsTemplate;
 import org.springframework.messaging.Message;
 import org.springframework.stereotype.Component;
 
-import java.util.concurrent.atomic.AtomicBoolean;
-
 @Slf4j
 @RequiredArgsConstructor
 @Component
@@ -25,16 +23,14 @@ public class BeerOrderAllocationListener {
 
         final BeerOrderDto beerOrderDto = request.getBeerOrderDto();
 
-        AtomicBoolean allocationError = new AtomicBoolean(false);
-        AtomicBoolean pendingInventory = new AtomicBoolean(false);
+        final String customerRef = beerOrderDto.getCustomerRef();
+        final boolean allocationError = customerRef != null && customerRef.equals("allocation-failed");
+        final boolean pendingInventory = customerRef != null && customerRef.equals("pending-inventory");
 
         beerOrderDto.getBeerOrderLines()
                 .forEach(beerOrderLineDto -> {
-                    final Integer orderQuantity = beerOrderLineDto.getOrderQuantity();
-                    if(orderQuantity <= 0) {
-                        allocationError.set(true);
-                    } else if(orderQuantity > 1000) {
-                        pendingInventory.set(true);
+                    if(pendingInventory) {
+                        beerOrderLineDto.setQuantityAllocated(beerOrderLineDto.getOrderQuantity() - 1);
                     } else {
                         beerOrderLineDto.setQuantityAllocated(beerOrderLineDto.getOrderQuantity());
                     }});
@@ -43,8 +39,8 @@ public class BeerOrderAllocationListener {
         jmsTemplate.convertAndSend(JmsConfig.ALLOCATE_ORDER_RESPONSE_QUEUE,
                 AllocateOrderResponse.builder()
                         .beerOrderDto(beerOrderDto)
-                        .allocationError(allocationError.getPlain())
-                        .pendingInventory(pendingInventory.getPlain())
+                        .allocationError(allocationError)
+                        .pendingInventory(pendingInventory)
                         .build());
     }
 

@@ -7,12 +7,14 @@ import com.github.jenspiegsa.wiremockextension.WireMockExtension;
 import com.github.tomakehurst.wiremock.WireMockServer;
 import guru.springframework.beer.order.service.client.BeerClientRestTemplateImpl;
 import guru.springframework.beer.order.service.client.model.BeerDto;
+import guru.springframework.beer.order.service.config.JmsConfig;
 import guru.springframework.beer.order.service.domain.BeerOrder;
 import guru.springframework.beer.order.service.domain.BeerOrderLine;
 import guru.springframework.beer.order.service.domain.BeerOrderStatus;
 import guru.springframework.beer.order.service.domain.Customer;
 import guru.springframework.beer.order.service.repositories.BeerOrderRepository;
 import guru.springframework.beer.order.service.repositories.CustomerRepository;
+import guru.springframework.beer.order.service.statemachine.event.AllocationFailureEvent;
 import lombok.extern.slf4j.Slf4j;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -21,6 +23,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.test.context.TestConfiguration;
 import org.springframework.context.annotation.Bean;
+import org.springframework.jms.core.JmsTemplate;
 
 import java.util.HashSet;
 import java.util.Set;
@@ -52,6 +55,9 @@ class BeerOrderManagerImplIT {
 
     @Autowired
     ObjectMapper objectMapper;
+
+    @Autowired
+    JmsTemplate jmsTemplate;
 
     private Customer testCustomer;
 
@@ -90,7 +96,7 @@ class BeerOrderManagerImplIT {
         wireMockServer.stubFor(get(BeerClientRestTemplateImpl.BEER_UPC_API_PATH + upc)
             .willReturn(okJson(objectMapper.writeValueAsString(beerDto))));
 
-        final BeerOrder savedBeerOrder = beerOrderManager.newBeerOrder(createBeerOrder(1));
+        final BeerOrder savedBeerOrder = beerOrderManager.newBeerOrder(createBeerOrder());
 
         await().untilAsserted(() -> {
             final BeerOrder beerOrderFound = beerOrderRepository.findById(savedBeerOrder.getId()).get();
@@ -125,7 +131,7 @@ class BeerOrderManagerImplIT {
         wireMockServer.stubFor(get(BeerClientRestTemplateImpl.BEER_UPC_API_PATH + upc)
                 .willReturn(okJson(objectMapper.writeValueAsString(beerDto))));
 
-        final BeerOrder beerOrder = createBeerOrder(1);
+        final BeerOrder beerOrder = createBeerOrder();
         beerOrder.setCustomerRef("fail-validation");
 
         final BeerOrder savedBeerOrder = beerOrderManager.newBeerOrder(beerOrder);
@@ -134,6 +140,7 @@ class BeerOrderManagerImplIT {
             final BeerOrder beerOrderFound = beerOrderRepository.findById(savedBeerOrder.getId()).get();
             assertEquals(BeerOrderStatus.VALIDATION_EXCEPTION, beerOrderFound.getOrderStatus());
         });
+
 
         final BeerOrder beerOrderWithException = beerOrderRepository.findById(savedBeerOrder.getId()).get();
 
@@ -155,7 +162,8 @@ class BeerOrderManagerImplIT {
         wireMockServer.stubFor(get(BeerClientRestTemplateImpl.BEER_UPC_API_PATH + upc)
                 .willReturn(okJson(objectMapper.writeValueAsString(beerDto))));
 
-        final BeerOrder beerOrder = createBeerOrder(0);
+        final BeerOrder beerOrder = createBeerOrder();
+        beerOrder.setCustomerRef("allocation-failed");
 
         final BeerOrder savedBeerOrder = beerOrderManager.newBeerOrder(beerOrder);
 
@@ -166,8 +174,12 @@ class BeerOrderManagerImplIT {
 
         final BeerOrder beerOrderWithException = beerOrderRepository.findById(savedBeerOrder.getId()).get();
 
+        final AllocationFailureEvent allocationFailureEvent = (AllocationFailureEvent) jmsTemplate.receiveAndConvert(JmsConfig.ALLOCATE_ORDER_FAILURE_QUEUE);
+
         assertNotNull(beerOrderWithException);
         assertEquals(BeerOrderStatus.ALLOCATION_EXCEPTION, beerOrderWithException.getOrderStatus());
+        assertNotNull(allocationFailureEvent);
+        assertEquals(beerOrderWithException.getId(), allocationFailureEvent.getOrderId());
 
     }
 
@@ -184,7 +196,8 @@ class BeerOrderManagerImplIT {
         wireMockServer.stubFor(get(BeerClientRestTemplateImpl.BEER_UPC_API_PATH + upc)
                 .willReturn(okJson(objectMapper.writeValueAsString(beerDto))));
 
-        final BeerOrder beerOrder = createBeerOrder(1001);
+        final BeerOrder beerOrder = createBeerOrder();
+        beerOrder.setCustomerRef("pending-inventory");
 
         final BeerOrder savedBeerOrder = beerOrderManager.newBeerOrder(beerOrder);
 
@@ -201,7 +214,7 @@ class BeerOrderManagerImplIT {
     }
 
     @Test
-    void beerOrderPickedUpOk() throws JsonProcessingException {
+    void beerOrderPickedUpOk() {
         final String upc = "1234567890123";
         final BeerDto beerDto = BeerDto.builder()
                 .id(beerId)
@@ -210,7 +223,7 @@ class BeerOrderManagerImplIT {
                 .beerStyle("IPA")
                 .build();
 
-        final BeerOrder beerOrderToSave = createBeerOrder(1);
+        final BeerOrder beerOrderToSave = createBeerOrder();
         beerOrderToSave.setOrderStatus(BeerOrderStatus.ALLOCATED);
 
         final BeerOrder savedBeerOrder = beerOrderRepository.saveAndFlush(beerOrderToSave);
@@ -231,7 +244,7 @@ class BeerOrderManagerImplIT {
 
     }
 
-    private BeerOrder createBeerOrder(Integer orderQuantity) {
+    private BeerOrder createBeerOrder() {
         BeerOrder beerOrder = BeerOrder.builder()
                 .customer(testCustomer)
                 .build();
@@ -240,7 +253,7 @@ class BeerOrderManagerImplIT {
         lines.add(BeerOrderLine.builder()
                         .beerId(beerId)
                         .upc("1234567890123")
-                        .orderQuantity(orderQuantity)
+                        .orderQuantity(10)
                         .beerOrder(beerOrder)
                         .build());
 

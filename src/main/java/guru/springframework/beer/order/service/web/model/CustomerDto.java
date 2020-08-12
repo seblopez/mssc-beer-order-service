@@ -29,6 +29,7 @@ import java.util.UUID;
 @NoArgsConstructor
 @EqualsAndHashCode(callSuper = true)
 public class CustomerDto extends BaseItem {
+    static final long serialVersionUID = -2261893514611151374L;
 
     @Builder
     public CustomerDto(UUID id, Integer version, OffsetDateTime createdDate, OffsetDateTime lastModifiedDate, String name) {

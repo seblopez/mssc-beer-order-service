@@ -1,6 +1,8 @@
 package guru.springframework.beer.order.service.config;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import guru.springframework.beer.order.service.client.model.BeerDto;
+import guru.springframework.beer.order.service.statemachine.event.AllocateOrderResponse;
 import guru.springframework.beer.order.service.statemachine.event.ValidateBeerOrderRequest;
 import guru.springframework.beer.order.service.statemachine.event.ValidateBeerOrderResponse;
 import guru.springframework.beer.order.service.web.model.BeerOrderDto;
@@ -34,6 +36,8 @@ public class JmsConfig {
         typeIdMappings.put("guru.springframework.msscbeerservice.service.beerorder.model.BeerOrderDto", BeerOrderDto.class);
         typeIdMappings.put("guru.springframework.msscbeerservice.service.beerorder.model.BeerOrderLineDto", BeerOrderLineDto.class);
         typeIdMappings.put("guru.springframework.msscbeerservice.service.beerorder.model.BeerOrderStatusDto", BeerOrderStatusDto.class);
+        typeIdMappings.put("guru.springframework.beer.inventory.service.statemachine.event.allocation.AllocateOrderResponse", AllocateOrderResponse.class);
+        typeIdMappings.put("guru.springframework.beer.inventory.service.web.model.BeerDto", BeerDto.class);
 
         MappingJackson2MessageConverter converter = new MappingJackson2MessageConverter();
         converter.setTargetType(MessageType.TEXT);

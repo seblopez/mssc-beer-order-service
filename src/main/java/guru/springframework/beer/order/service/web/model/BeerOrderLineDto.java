@@ -29,6 +29,7 @@ import java.util.UUID;
 @NoArgsConstructor
 @EqualsAndHashCode(callSuper = true)
 public class BeerOrderLineDto extends BaseItem {
+    static final long serialVersionUID = -4398679141116439507L;
 
     @Builder
     public BeerOrderLineDto(UUID id, Integer version, OffsetDateTime createdDate, OffsetDateTime lastModifiedDate,
